@@ -1,15 +1,19 @@
-from typing import Optional
-
-import pydantic
+from pydantic import create_model, BaseModel
 
 
-class AllOptional(pydantic.main.ModelMetaclass):
-    def __new__(self, name, bases, namespaces, **kwargs):
-        annotations = namespaces.get('__annotations__', {})
-        for base in bases:
-            annotations.update(base.__annotations__)
-        for field in annotations:
-            if not field.startswith('__'):
-                annotations[field] = Optional[annotations[field]]
-        namespaces['__annotations__'] = annotations
-        return super().__new__(self, name, bases, namespaces, **kwargs)
+def create_partial_model(model: type[BaseModel]) -> type[BaseModel]:
+    """Create a version of a model with all fields Optional and defaulting to None.
+
+    This is used to create "Partial" versions of models for updates where
+    only some fields may be provided.
+    """
+    field_definitions = {}
+    for name, field_info in model.model_fields.items():
+        # Make field optional with None default
+        field_definitions[name] = (field_info.annotation | None, None)
+
+    return create_model(
+        f'{model.__name__}Partial',
+        __base__=(model,),
+        **field_definitions
+    )

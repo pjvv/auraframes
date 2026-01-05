@@ -1,8 +1,7 @@
 from __future__ import annotations
 
-import typing
 from enum import Enum
-from typing import Optional
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -66,14 +65,14 @@ class Activity(BaseModel):
     formatted_text: str
     frame_id: str
     plain_text: str
-    playlist: typing.Any  # unknown
-    playlist_id: Optional[str]
+    playlist: Any  # unknown
+    playlist_id: str | None = None
     reactions: list[Reaction]
     recent_comments: list[Comment]
     representative_asset_ids: list[str]
     type: ActivityType
     user_id: str
     viewable_asset_count: int
-    suggestion_manifest: Optional[list[SuggestionManifest]] = None
-    user: Optional[User] = None
-    representative_assets: Optional[list[Asset]] = None
+    suggestion_manifest: list[SuggestionManifest] | None = None
+    user: User | None = None
+    representative_assets: list[Asset] | None = None

@@ -1,12 +1,10 @@
-from auraframes.api.baseApi import BaseApi
-
-# TODO: Untested
+from auraframes.api.base_api import BaseApi
 from auraframes.models.asset import Asset, AssetPartialId
 
 
 class AssetApi(BaseApi):
 
-    def batch_update(self, asset: Asset) -> tuple[list[str], list[AssetPartialId]]:
+    async def batch_update(self, asset: Asset) -> tuple[list[str], list[AssetPartialId]]:
         """
         Posts new metadata to the API. This does not appear to affect the frame; however subsequent calls to retrieve
         this asset will have the modified metadata.
@@ -16,9 +14,9 @@ class AssetApi(BaseApi):
         :param asset: Asset containing new metadata
         :return: List of sent remote ids, list of received AssetPartialId successes
         """
-        json_response = self._client.put(f'/assets/batch_update.json', data={
+        json_response = await self._client.put('/assets/batch_update.json', data={
             "assets": [
-                asset.dict(
+                asset.model_dump(
                     include={
                         'data_uti': True,
                         'favorite': True,
@@ -37,21 +35,21 @@ class AssetApi(BaseApi):
             ]
         })
 
-        return json_response.get('ids'), [AssetPartialId(**partial_asset_id) for partial_asset_id in
-                                          json_response.get('successes')]
+        return json_response.get('ids', []), [AssetPartialId(**partial_asset_id) for partial_asset_id in
+                                          json_response.get('successes', [])]
 
-    def get_asset_by_local_identifier(self, local_id: str):
+    async def get_asset_by_local_identifier(self, local_id: str):
         """
         Retrieves an asset given a local id.
         :param local_id: A local id string.
         :return: The retrieved asset, related child albums, and any smart adds related to the asset.
         """
-        json_response = self._client.get(f'/assets/asset_for_local_identifier.json',
+        json_response = await self._client.get('/assets/asset_for_local_identifier.json',
                                          query_params={'local_identifier': local_id})
 
-        return Asset(**json_response.get('asset')), json_response.get('child_albums'), json_response.get('smart_adds')
+        return Asset(**json_response.get('asset', {})), json_response.get('child_albums', []), json_response.get('smart_adds', [])
 
-    def update_taken_at_date(self, asset: Asset) -> Asset:
+    async def update_taken_at_date(self, asset: Asset) -> Asset:
         """
         Updates an asset's taken_date and taken_at_granularity. This will modify the date displayed in the frame and
         from future responses.
@@ -68,33 +66,35 @@ class AssetApi(BaseApi):
         else:
             request.update({'id': asset.id})
 
-        json_response = self._client.post(f'/assets/update_taken_at_date.json', data=request)
+        json_response = await self._client.post('/assets/update_taken_at_date.json', data=request)
         return Asset(**json_response)
 
-    def delete_asset(self, asset: Asset):
+    async def delete_asset(self, asset: Asset) -> dict:
         """
-        Deletes the asset. **Currently unknown if this is used, most deletions occur by removing
-        the activity; maybe this deletes it from S3/Glacier** see :func:`FrameApi.remove_asset`
+        Deletes the asset.
+
+        Note: Most deletions occur by removing the activity via FrameApi.remove_asset.
+        This endpoint may delete from S3/Glacier storage.
 
         :param asset: Asset for removal
-        :return: TODO
+        :return: API response dict
         """
         if asset.is_local_asset:
-            json_response = self._client.post(f'/assets/destroy_by_local_identifier.json',
+            json_response = await self._client.post('/assets/destroy_by_local_identifier.json',
                                               data={'local_identifier': asset.local_identifier})
         else:
-            json_response = self._client.delete(f'/assets/{asset.id}.json')
+            json_response = await self._client.delete(f'/assets/{asset.id}.json')
 
         return json_response
 
-    def crop_asset(self, asset: Asset) -> Asset:
+    async def crop_asset(self, asset: Asset) -> Asset:
         """
         Crops an asset, modifying `rotation_cw`, `user_landscape_rect`, `user_portrait_rect` and related
         aspect ratio rects.
         :param asset: Asset containing new rotation/rect data.
         :return: The asset with modified crop fields.
         """
-        json_response = self._client.post(f'/assets/crop.json', data=asset.dict(
+        json_response = await self._client.post('/assets/crop.json', data=asset.model_dump(
             include={
                 'id': True,
                 'local_identifier': True,
@@ -106,4 +106,4 @@ class AssetApi(BaseApi):
                 'user_portrait_rect': True
             }))
 
-        return Asset(**json_response.get('asset'))
+        return Asset(**json_response.get('asset', {}))

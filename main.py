@@ -1,8 +1,4 @@
-from auraframes.aura import Aura
+from auraframes.tui import main
 
 if __name__ == '__main__':
-    aura = Aura()
-    aura.login()
-    aura.frame_api.get_frames()
-
-# TODO: Port cloning / dumping example from working main.
+    main()
